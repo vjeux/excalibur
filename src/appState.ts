@@ -10,6 +10,7 @@ import {
 
 export const getDefaultAppState = (): AppState => {
   return {
+    remoteIsTouchDevice: false,
     isLoading: false,
     errorMessage: null,
     draggingElement: null,
@@ -126,6 +127,7 @@ const APP_STATE_STORAGE_CONF = (<
   width: { browser: false, export: false },
   zenModeEnabled: { browser: true, export: false },
   zoom: { browser: true, export: false },
+  remoteIsTouchDevice: { browser: true, export: false },
 });
 
 const _clearAppStateForStorage = <ExportType extends "export" | "browser">(

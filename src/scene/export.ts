@@ -68,6 +68,8 @@ export const exportToCanvas = (
       shouldCacheIgnoreZoom: false,
       remotePointerUsernames: {},
     },
+    false,
+    false,
     {
       renderScrollbars: false,
       renderSelection: false,

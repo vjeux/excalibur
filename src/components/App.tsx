@@ -245,6 +245,12 @@ class App extends React.Component<ExcalidrawProps, AppState> {
   unmounted: boolean = false;
   actionManager: ActionManager;
 
+  public state: AppState = {
+    ...getDefaultAppState(),
+    isLoading: true,
+    remoteIsTouchDevice: false,
+  };
+
   public static defaultProps: Partial<ExcalidrawProps> = {
     width: window.innerWidth,
     height: window.innerHeight,
@@ -743,6 +749,8 @@ class App extends React.Component<ExcalidrawProps, AppState> {
         remotePointerUsernames: pointerUsernames,
         shouldCacheIgnoreZoom: this.state.shouldCacheIgnoreZoom,
       },
+      this.state.remoteIsTouchDevice,
+      touchMoving,
       {
         renderOptimizations: true,
       },
@@ -828,6 +836,10 @@ class App extends React.Component<ExcalidrawProps, AppState> {
   }
 
   private onTapStart = (event: TouchEvent) => {
+    this.setState({
+      remoteIsTouchDevice: true,
+    });
+
     if (!didTapTwice) {
       didTapTwice = true;
       clearTimeout(tappedTwiceTimer);
@@ -864,6 +876,7 @@ class App extends React.Component<ExcalidrawProps, AppState> {
       this.setState({
         previousSelectedElementIds: {},
         selectedElementIds: previousSelectedElementIds,
+        remoteIsTouchDevice: false,
       });
     }
   };
@@ -1264,6 +1277,7 @@ class App extends React.Component<ExcalidrawProps, AppState> {
           button: payload.button || "up",
           selectedElementIds: this.state.selectedElementIds,
           username: this.state.username,
+          remoteIsTouchDevice: this.state.remoteIsTouchDevice,
         },
       };
       return this.portal._broadcastSocketData(
