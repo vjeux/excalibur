@@ -1,5 +1,6 @@
 import React from "react";
 import { Popover } from "./Popover";
+import { PopoverModal } from "./PopoverModal";
 
 import "./ColorPicker.scss";
 import { isArrowKey, KEYS } from "../keys";
@@ -240,6 +241,8 @@ export const ColorPicker = ({
   label,
   isActive,
   setActive,
+  excalidrawContainer,
+  zenModeEnabled,
 }: {
   type: "canvasBackground" | "elementBackground" | "elementStroke";
   color: string | null;
@@ -247,11 +250,28 @@ export const ColorPicker = ({
   label: string;
   isActive: boolean;
   setActive: (active: boolean) => void;
+  excalidrawContainer?: HTMLElement;
+  zenModeEnabled?: boolean;
 }) => {
   const pickerButton = React.useRef<HTMLButtonElement>(null);
+  const mainRef = React.useRef<HTMLDivElement>(null);
+  const [top, setTop] = React.useState(0);
+
+  React.useEffect(() => {
+    if (
+      excalidrawContainer === undefined ||
+      mainRef.current === null ||
+      !zenModeEnabled
+    ) {
+      return;
+    }
+    const d1 = excalidrawContainer.getBoundingClientRect();
+    const d2 = mainRef.current.getBoundingClientRect();
+    setTop(d1.top + Math.abs(d2.bottom));
+  }, [excalidrawContainer, zenModeEnabled]);
 
   return (
-    <div>
+    <div ref={mainRef}>
       <div className="color-picker-control-container">
         <button
           className="color-picker-label-swatch"
@@ -270,26 +290,35 @@ export const ColorPicker = ({
       </div>
       <React.Suspense fallback="">
         {isActive ? (
-          <Popover
-            onCloseRequest={(event) =>
-              event.target !== pickerButton.current && setActive(false)
-            }
+          <PopoverModal
+            container={excalidrawContainer}
+            zenModeEnabled={zenModeEnabled}
           >
-            <Picker
-              colors={colors[type]}
-              color={color || null}
-              onChange={(changedColor) => {
-                onChange(changedColor);
-              }}
-              onClose={() => {
-                setActive(false);
-                pickerButton.current?.focus();
-              }}
-              label={label}
-              showInput={false}
-              type={type}
-            />
-          </Popover>
+            <Popover
+              onCloseRequest={(event) =>
+                event.target !== pickerButton.current && setActive(false)
+              }
+              top={
+                type === "canvasBackground" || !zenModeEnabled ? undefined : top
+              }
+              left={type === "canvasBackground" ? undefined : 10}
+            >
+              <Picker
+                colors={colors[type]}
+                color={color || null}
+                onChange={(changedColor) => {
+                  onChange(changedColor);
+                }}
+                onClose={() => {
+                  setActive(false);
+                  pickerButton.current?.focus();
+                }}
+                label={label}
+                showInput={false}
+                type={type}
+              />
+            </Popover>
+          </PopoverModal>
         ) : null}
       </React.Suspense>
     </div>
