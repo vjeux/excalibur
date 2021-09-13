@@ -10,6 +10,8 @@ import {
   Arrowhead,
   ChartType,
   FontFamilyValues,
+  ImageId,
+  InitializedExcalidrawImageElement,
 } from "./element/types";
 import { SHAPES } from "./shapes";
 import { Point as RoughPoint } from "roughjs/bin/geometry";
@@ -23,6 +25,7 @@ import { Language } from "./i18n";
 import { ClipboardData } from "./clipboard";
 import { isOverScrollBars } from "./scene";
 import { MaybeTransformHandleType } from "./element/transformHandles";
+import Library from "./data/library";
 
 export type Point = Readonly<RoughPoint>;
 
@@ -42,6 +45,10 @@ export type Collaborator = {
 };
 
 export type AppState = {
+  files: Record<
+    ExcalidrawElement["id"],
+    { type: "image"; id: string; dataURL: string }
+  >;
   isLoading: boolean;
   errorMessage: string | null;
   draggingElement: NonDeletedExcalidrawElement | null;
@@ -125,6 +132,8 @@ export type AppState = {
         shown: true;
         data: Spreadsheet;
       };
+  /** imageElement waiting to be placed on canvas */
+  pendingImageElement: NonDeleted<InitializedExcalidrawImageElement> | null;
 };
 
 export type NormalizedZoomValue = number & { _brand: "normalizedZoom" };
@@ -253,6 +262,16 @@ export type AppProps = ExcalidrawProps & {
   handleKeyboardGlobally: boolean;
 };
 
+/** A subset of App class properties that we need to use elsewhere
+ * in the app, eg Manager. Factored out into a separate type to keep DRY. */
+export type AppClassProperties = {
+  props: AppProps;
+  canvas: HTMLCanvasElement | null;
+  focusContainer(): void;
+  library: Library;
+  imageCache: Map<ImageId, HTMLImageElement>;
+};
+
 export type PointerDownState = Readonly<{
   // The first position at which pointerDown happened
   origin: Readonly<{ x: number; y: number }>;
@@ -325,6 +344,7 @@ export type ExcalidrawImperativeAPI = {
   refresh: InstanceType<typeof App>["refresh"];
   importLibrary: InstanceType<typeof App>["importLibraryFromUrl"];
   setToastMessage: InstanceType<typeof App>["setToastMessage"];
+  setFiles: (data: AppState["files"][number][]) => void;
   readyPromise: ResolvablePromise<ExcalidrawImperativeAPI>;
   ready: true;
   id: string;

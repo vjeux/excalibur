@@ -2,7 +2,7 @@ import React, { useContext } from "react";
 import { RoughCanvas } from "roughjs/bin/canvas";
 import rough from "roughjs/bin/rough";
 import clsx from "clsx";
-import { supported as fsSupported } from "browser-fs-access";
+import { fileOpen, supported as fsSupported } from "browser-fs-access";
 import { nanoid } from "nanoid";
 
 import {
@@ -91,6 +91,7 @@ import {
   newElement,
   newLinearElement,
   newTextElement,
+  newImageElement,
   textWysiwyg,
   transformElements,
   updateTextElement,
@@ -109,11 +110,12 @@ import {
   updateBoundElements,
 } from "../element/binding";
 import { LinearElementEditor } from "../element/linearElementEditor";
-import { mutateElement } from "../element/mutateElement";
+import { mutateElement, newElementWith } from "../element/mutateElement";
 import { deepCopyElement, newFreeDrawElement } from "../element/newElement";
 import {
   isBindingElement,
   isBindingElementType,
+  isInitializedImageElement,
   isLinearElement,
   isLinearElementType,
 } from "../element/typeChecks";
@@ -125,6 +127,9 @@ import {
   ExcalidrawLinearElement,
   ExcalidrawTextElement,
   NonDeleted,
+  ImageId,
+  InitializedExcalidrawImageElement,
+  ExcalidrawImageElement,
 } from "../element/types";
 import { getCenter, getDistance } from "../gesture";
 import {
@@ -140,9 +145,9 @@ import History from "../history";
 import { defaultLang, getLanguage, languages, setLanguage, t } from "../i18n";
 import {
   CODES,
-  getResizeCenterPointKey,
-  getResizeWithSidesSameLengthKey,
-  getRotateWithDiscreteAngleKey,
+  shouldResizeFromCenter,
+  shouldMaintainAspectRatio,
+  shouldRotateWithDiscreteAngle,
   isArrowKey,
   KEYS,
 } from "../keys";
@@ -165,6 +170,7 @@ import { SceneState, ScrollBars } from "../scene/types";
 import { getNewZoom } from "../scene/zoom";
 import { findShapeByKey } from "../shapes";
 import {
+  AppClassProperties,
   AppProps,
   AppState,
   ExcalidrawImperativeAPI,
@@ -195,6 +201,11 @@ import LayerUI from "./LayerUI";
 import { Stats } from "./Stats";
 import { Toast } from "./Toast";
 import { actionToggleViewMode } from "../actions/actionToggleViewMode";
+import { isImageFile } from "../data/blob";
+import {
+  getInitializedImageElements,
+  updateImageCache,
+} from "../element/image";
 
 const IsMobileContext = React.createContext(false);
 export const useIsMobile = () => useContext(IsMobileContext);
@@ -225,7 +236,7 @@ const gesture: Gesture = {
 };
 
 class App extends React.Component<AppProps, AppState> {
-  canvas: HTMLCanvasElement | null = null;
+  canvas: AppClassProperties["canvas"] = null;
   rc: RoughCanvas | null = null;
   unmounted: boolean = false;
   actionManager: ActionManager;
@@ -242,7 +253,7 @@ class App extends React.Component<AppProps, AppState> {
   private scene: Scene;
   private resizeObserver: ResizeObserver | undefined;
   private nearestScrollableContainer: HTMLElement | Document | undefined;
-  public library: Library;
+  public library: AppClassProperties["library"];
   public libraryItemsFromStorage: LibraryItems | undefined;
   private id: string;
   private history: History;
@@ -250,6 +261,8 @@ class App extends React.Component<AppProps, AppState> {
     container: HTMLDivElement | null;
     id: string;
   };
+
+  public imageCache: AppClassProperties["imageCache"] = new Map();
 
   constructor(props: AppProps) {
     super(props);
@@ -286,6 +299,7 @@ class App extends React.Component<AppProps, AppState> {
         ready: true,
         readyPromise,
         updateScene: this.updateScene,
+        setFiles: this.setFiles,
         resetScene: this.resetScene,
         getSceneElementsIncludingDeleted: this.getSceneElementsIncludingDeleted,
         history: {
@@ -443,6 +457,7 @@ class App extends React.Component<AppProps, AppState> {
               focusContainer={this.focusContainer}
               library={this.library}
               id={this.id}
+              onImageAction={this.onImageAction}
             />
             <div className="excalidraw-textEditorContainer" />
             <div className="excalidraw-contextMenuContainer" />
@@ -468,7 +483,7 @@ class App extends React.Component<AppProps, AppState> {
     );
   }
 
-  public focusContainer = () => {
+  public focusContainer: AppClassProperties["focusContainer"] = () => {
     if (this.props.autoFocus) {
       this.excalidrawContainerRef.current?.focus();
     }
@@ -725,6 +740,11 @@ class App extends React.Component<AppProps, AppState> {
       commitToHistory: true,
     });
 
+    this.renderImages(
+      getInitializedImageElements(scene.elements),
+      scene.appState.files,
+    );
+
     const libraryUrl =
       // current
       new URLSearchParams(window.location.hash.slice(1)).get(
@@ -815,6 +835,7 @@ class App extends React.Component<AppProps, AppState> {
   }
 
   public componentWillUnmount() {
+    this.imageCache.clear();
     this.resizeObserver?.disconnect();
     this.unmounted = true;
     this.removeEventListeners();
@@ -1025,17 +1046,26 @@ class App extends React.Component<AppProps, AppState> {
       );
       cursorButton[socketId] = user.button;
     });
-    const elements = this.scene.getElements();
+    const renderingElements = this.scene.getElements().filter((element) => {
+      if (element.type === "image") {
+        if (
+          // not placed on canvas yet (but in elements array)
+          this.state.pendingImageElement &&
+          element.id === this.state.pendingImageElement.id
+        ) {
+          return false;
+        }
+      }
+      // don't render text element that's being currently edited (it's
+      // rendered on remote only)
+      return (
+        !this.state.editingElement ||
+        this.state.editingElement.type !== "text" ||
+        element.id !== this.state.editingElement.id
+      );
+    });
     const { atLeastOneVisibleElement, scrollBars } = renderScene(
-      elements.filter((element) => {
-        // don't render text element that's being currently edited (it's
-        // rendered on remote only)
-        return (
-          !this.state.editingElement ||
-          this.state.editingElement.type !== "text" ||
-          element.id !== this.state.editingElement.id
-        );
-      }),
+      renderingElements,
       this.state,
       this.state.selectionElement,
       window.devicePixelRatio,
@@ -1052,6 +1082,8 @@ class App extends React.Component<AppProps, AppState> {
         remotePointerUsernames: pointerUsernames,
         remotePointerUserStates: pointerUserStates,
         shouldCacheIgnoreZoom: this.state.shouldCacheIgnoreZoom,
+        theme: this.state.theme,
+        imageCache: this.imageCache,
       },
       {
         renderOptimizations: true,
@@ -1065,7 +1097,7 @@ class App extends React.Component<AppProps, AppState> {
       // hide when editing text
       this.state.editingElement?.type === "text"
         ? false
-        : !atLeastOneVisibleElement && elements.length > 0;
+        : !atLeastOneVisibleElement && renderingElements.length > 0;
     if (this.state.scrolledOutside !== scrolledOutside) {
       this.setState({ scrolledOutside });
     }
@@ -1191,6 +1223,23 @@ class App extends React.Component<AppProps, AppState> {
       ) {
         return;
       }
+
+      const file = event?.clipboardData?.files[0];
+      if (isImageFile(file)) {
+        const { x: sceneX, y: sceneY } = viewportCoordsToSceneCoords(
+          { clientX: cursorX, clientY: cursorY },
+          this.state,
+        );
+        const imageElement = await this.initializeImage({
+          imageFile: file,
+          imageElement: this.createImageElement({ sceneX, sceneY }),
+        });
+        this.insertImageElement(imageElement);
+        this.setState({ selectedElementIds: { [imageElement.id]: true } });
+
+        return;
+      }
+
       const data = await parseClipboard(event);
       if (this.props.onPaste) {
         try {
@@ -1405,6 +1454,30 @@ class App extends React.Component<AppProps, AppState> {
     }
   };
 
+  public setFiles: ExcalidrawImperativeAPI["setFiles"] = withBatchedUpdates(
+    (files) => {
+      this.setState(
+        (state) => ({
+          files: {
+            ...state.files,
+            ...files.reduce((acc, { id, type, dataURL }) => {
+              acc[id] = { type, id, dataURL };
+              return acc;
+            }, {} as Record<string, AppState["files"][number]>),
+          },
+        }),
+        () => {
+          this.renderImages(
+            getInitializedImageElements(
+              this.scene.getElementsIncludingDeleted(),
+            ),
+            this.state.files,
+          );
+        },
+      );
+    },
+  );
+
   public updateScene = withBatchedUpdates(
     <K extends keyof AppState>(sceneData: {
       elements?: SceneData["elements"];
@@ -1495,7 +1568,7 @@ class App extends React.Component<AppProps, AppState> {
         this.setState({ isBindingEnabled: false });
       }
 
-      if (event.code === CODES.NINE) {
+      if (event.code === CODES.ZERO) {
         this.setState({ isLibraryOpen: !this.state.isLibraryOpen });
       }
 
@@ -1658,6 +1731,9 @@ class App extends React.Component<AppProps, AppState> {
     }
     if (!isLinearElementType(elementType)) {
       this.setState({ suggestedBindings: [] });
+    }
+    if (elementType === "image") {
+      this.onImageAction();
     }
     if (elementType !== "selection") {
       this.setState({
@@ -2341,6 +2417,23 @@ class App extends React.Component<AppProps, AppState> {
         this.state.elementType,
         pointerDownState,
       );
+    } else if (this.state.elementType === "image") {
+      if (!this.state.pendingImageElement) {
+        return;
+      }
+
+      this.setState({
+        draggingElement: this.state.pendingImageElement,
+        editingElement: this.state.pendingImageElement,
+        pendingImageElement: null,
+        multiElement: null,
+      });
+
+      const { x, y } = viewportCoordsToSceneCoords(event, this.state);
+      mutateElement(this.state.pendingImageElement, {
+        x,
+        y,
+      });
     } else if (this.state.elementType === "freedraw") {
       this.handleFreeDrawElementOnPointerDown(
         event,
@@ -2910,6 +3003,32 @@ class App extends React.Component<AppProps, AppState> {
     });
   };
 
+  private createImageElement = ({
+    sceneX,
+    sceneY,
+  }: {
+    sceneX: number;
+    sceneY: number;
+  }) => {
+    const [gridX, gridY] = getGridPoint(sceneX, sceneY, this.state.gridSize);
+
+    const element = newImageElement({
+      type: "image",
+      x: gridX,
+      y: gridY,
+      strokeColor: this.state.currentItemStrokeColor,
+      backgroundColor: this.state.currentItemBackgroundColor,
+      fillStyle: this.state.currentItemFillStyle,
+      strokeWidth: this.state.currentItemStrokeWidth,
+      strokeStyle: this.state.currentItemStrokeStyle,
+      roughness: this.state.currentItemRoughness,
+      opacity: this.state.currentItemOpacity,
+      strokeSharpness: this.state.currentItemLinearStrokeSharpness,
+    });
+
+    return element;
+  };
+
   private handleLinearElementOnPointerDown = (
     event: React.PointerEvent<HTMLCanvasElement>,
     elementType: ExcalidrawLinearElement["type"],
@@ -3294,7 +3413,7 @@ class App extends React.Component<AppProps, AppState> {
         let dx = gridX - draggingElement.x;
         let dy = gridY - draggingElement.y;
 
-        if (getRotateWithDiscreteAngleKey(event) && points.length === 2) {
+        if (shouldRotateWithDiscreteAngle(event) && points.length === 2) {
           ({ width: dx, height: dy } = getPerfectElementSize(
             this.state.elementType,
             dx,
@@ -3409,7 +3528,7 @@ class App extends React.Component<AppProps, AppState> {
   private onPointerUpFromPointerDownHandler(
     pointerDownState: PointerDownState,
   ): (event: PointerEvent) => void {
-    return withBatchedUpdates((childEvent: PointerEvent) => {
+    return withBatchedUpdates(async (childEvent: PointerEvent) => {
       const {
         draggingElement,
         resizingElement,
@@ -3471,6 +3590,10 @@ class App extends React.Component<AppProps, AppState> {
         pointerDownState.eventListeners.onKeyUp!,
       );
 
+      if (this.state.pendingImageElement) {
+        this.setState({ pendingImageElement: null });
+      }
+
       if (draggingElement?.type === "freedraw") {
         const pointerCoords = viewportCoordsToSceneCoords(
           childEvent,
@@ -3498,6 +3621,29 @@ class App extends React.Component<AppProps, AppState> {
 
         this.actionManager.executeAction(actionFinalize);
 
+        return;
+      }
+      if (draggingElement?.type === "image") {
+        const imageElement = draggingElement;
+        try {
+          if (isInitializedImageElement(imageElement)) {
+            this.initImageDimensions(imageElement);
+            this.setState(
+              { selectedElementIds: { [imageElement.id]: true } },
+              () => {
+                this.actionManager.executeAction(actionFinalize);
+              },
+            );
+          }
+        } catch (error) {
+          console.error(error);
+          this.scene.replaceAllElements(
+            this.scene
+              .getElementsIncludingDeleted()
+              .filter((el) => el.id !== imageElement.id),
+          );
+          this.actionManager.executeAction(actionFinalize);
+        }
         return;
       }
 
@@ -3734,6 +3880,181 @@ class App extends React.Component<AppProps, AppState> {
     });
   }
 
+  private getImageData = async (imageFile: File) => {
+    return new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataURL = reader.result as string;
+        resolve(dataURL);
+      };
+      reader.readAsDataURL(imageFile);
+    });
+  };
+
+  private initializeImage = async ({
+    imageFile,
+    imageElement: _imageElement,
+  }: {
+    imageFile: File;
+    imageElement: ExcalidrawImageElement;
+  }) => {
+    const dataURL = await this.getImageData(imageFile);
+
+    let imageId: ImageId;
+    try {
+      const hashBuffer = await window.crypto.subtle.digest(
+        "SHA-1",
+        await imageFile.arrayBuffer(),
+      );
+      imageId =
+        // buffer to byte array
+        Array.from(new Uint8Array(hashBuffer))
+          // bytes to hex string
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("") as ImageId;
+    } catch (error) {
+      console.error(error);
+      imageId = nanoid(40) as ImageId;
+    }
+
+    const imageElement = newElementWith(_imageElement, {
+      imageId,
+    }) as NonDeleted<InitializedExcalidrawImageElement>;
+
+    return new Promise<NonDeleted<InitializedExcalidrawImageElement>>(
+      (resolve, reject) => {
+        this.setState(
+          (state) => ({
+            files: {
+              ...state.files,
+              [imageId]: {
+                type: "image",
+                id: imageId,
+                dataURL,
+              },
+            },
+          }),
+          async () => {
+            try {
+              await updateImageCache({
+                imageCache: this.imageCache,
+                imageElements: [imageElement],
+                files: this.state.files,
+              });
+              resolve(imageElement);
+            } catch (error) {
+              console.error(error);
+              reject(new Error("Couldn't create image"));
+            }
+          },
+        );
+      },
+    );
+  };
+
+  /**
+   * inserts image into elements array and rerenders
+   */
+  private insertImageElement = (
+    imageElement: InitializedExcalidrawImageElement,
+  ) => {
+    this.scene.replaceAllElements([
+      ...this.scene.getElementsIncludingDeleted(),
+      imageElement,
+    ]);
+
+    if (this.state.pendingImageElement?.id !== imageElement.id) {
+      this.initImageDimensions(imageElement);
+    }
+
+    this.scene.informMutation();
+  };
+
+  private onImageAction = async () => {
+    try {
+      const clientX = this.state.width / 2 + this.state.offsetLeft;
+      const clientY = this.state.height / 2 + this.state.offsetTop;
+
+      const { x, y } = viewportCoordsToSceneCoords(
+        { clientX, clientY },
+        this.state,
+      );
+
+      const imageFile = await fileOpen({
+        description: "Image",
+        extensions: [".jpg", ".jpeg", ".png", ".svg"],
+        mimeTypes: ["image/jpeg", "image/png", "image/svg+xml"],
+      });
+
+      const imageElement = await this.initializeImage({
+        imageFile,
+        imageElement: this.createImageElement({
+          sceneX: x,
+          sceneY: y,
+        }),
+      });
+
+      this.setState(
+        {
+          pendingImageElement: imageElement,
+        },
+        () => {
+          this.insertImageElement(imageElement);
+        },
+      );
+    } catch (error) {
+      if (error.name !== "AbortError") {
+        console.error(error);
+      }
+      this.setState(
+        {
+          pendingImageElement: null,
+          editingElement: null,
+          elementType: "selection",
+        },
+        () => {
+          this.actionManager.executeAction(actionFinalize);
+        },
+      );
+    }
+  };
+
+  private initImageDimensions = (
+    imageElement: InitializedExcalidrawImageElement,
+  ) => {
+    const image = this.imageCache.get(imageElement.imageId);
+
+    // if user-created bounding box is below threshold, assume the
+    // intention was to click instead of drag, and use the image's
+    // intrinsic size
+    if (
+      image &&
+      imageElement.width < DRAGGING_THRESHOLD / this.state.zoom.value &&
+      imageElement.height < DRAGGING_THRESHOLD / this.state.zoom.value
+    ) {
+      mutateElement(imageElement, {
+        x: imageElement.x - image.width / 2,
+        y: imageElement.y - image.height / 2,
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+      });
+    }
+  };
+
+  private renderImages = async (
+    imageElements: InitializedExcalidrawImageElement[],
+    files: AppState["files"],
+  ) => {
+    await updateImageCache({
+      imageCache: this.imageCache,
+      imageElements,
+      files,
+    });
+    if (this.imageCache.size) {
+      this.scene.informMutation();
+    }
+  };
+
   private updateBindingEnabledOnPointerMove = (
     event: React.PointerEvent<HTMLCanvasElement>,
   ) => {
@@ -3832,31 +4153,61 @@ class App extends React.Component<AppProps, AppState> {
   private handleAppOnDrop = async (event: React.DragEvent<HTMLDivElement>) => {
     try {
       const file = event.dataTransfer.files[0];
-      if (file?.type === "image/png" || file?.type === "image/svg+xml") {
-        if (fsSupported) {
+
+      if (isImageFile(file)) {
+        // first attempt to decode scene from the image if it's embedded
+        // ---------------------------------------------------------------------
+
+        if (file?.type === "image/png" || file?.type === "image/svg+xml") {
           try {
-            // This will only work as of Chrome 86,
-            // but can be safely ignored on older releases.
-            const item = event.dataTransfer.items[0];
-            (file as any).handle = await (item as any).getAsFileSystemHandle();
+            if (fsSupported) {
+              try {
+                // This will only work as of Chrome 86,
+                // but can be safely ignored on older releases.
+                const item = event.dataTransfer.items[0];
+                (file as any).handle = await (item as any).getAsFileSystemHandle();
+              } catch (error) {
+                console.warn(error.name, error.message);
+              }
+            }
+
+            const { elements, appState } = await loadFromBlob(
+              file,
+              this.state,
+              this.scene.getElementsIncludingDeleted(),
+            );
+            this.syncActionResult({
+              elements,
+              appState: {
+                ...(appState || this.state),
+                isLoading: false,
+              },
+              commitToHistory: true,
+            });
+            return;
           } catch (error) {
-            console.warn(error.name, error.message);
+            if (error.name !== "EncodingError") {
+              throw error;
+            }
           }
         }
 
-        const { elements, appState } = await loadFromBlob(
-          file,
+        // if no scene is embedded or we fail for whatever reason, fall back
+        // to importing as regular image
+        // ---------------------------------------------------------------------
+
+        const { x: sceneX, y: sceneY } = viewportCoordsToSceneCoords(
+          event,
           this.state,
-          this.scene.getElementsIncludingDeleted(),
         );
-        this.syncActionResult({
-          elements,
-          appState: {
-            ...(appState || this.state),
-            isLoading: false,
-          },
-          commitToHistory: true,
+
+        const imageElement = await this.initializeImage({
+          imageFile: file,
+          imageElement: this.createImageElement({ sceneX, sceneY }),
         });
+        this.insertImageElement(imageElement);
+        this.setState({ selectedElementIds: { [imageElement.id]: true } });
+
         return;
       }
     } catch (error) {
@@ -3970,8 +4321,8 @@ class App extends React.Component<AppProps, AppState> {
         pointerCoords.y,
         distance(pointerDownState.origin.x, pointerCoords.x),
         distance(pointerDownState.origin.y, pointerCoords.y),
-        getResizeWithSidesSameLengthKey(event),
-        getResizeCenterPointKey(event),
+        shouldMaintainAspectRatio(event),
+        shouldResizeFromCenter(event),
       );
     } else {
       const [gridX, gridY] = getGridPoint(
@@ -3979,6 +4330,12 @@ class App extends React.Component<AppProps, AppState> {
         pointerCoords.y,
         this.state.gridSize,
       );
+
+      const image =
+        isInitializedImageElement(draggingElement) &&
+        this.imageCache.get(draggingElement.imageId);
+      const aspectRatio = image ? image.width / image.height : null;
+
       dragNewElement(
         draggingElement,
         this.state.elementType,
@@ -3988,9 +4345,13 @@ class App extends React.Component<AppProps, AppState> {
         gridY,
         distance(pointerDownState.originInGrid.x, gridX),
         distance(pointerDownState.originInGrid.y, gridY),
-        getResizeWithSidesSameLengthKey(event),
-        getResizeCenterPointKey(event),
+        draggingElement.type === "image"
+          ? !shouldMaintainAspectRatio(event)
+          : shouldMaintainAspectRatio(event),
+        shouldResizeFromCenter(event),
+        aspectRatio,
       );
+
       this.maybeSuggestBindingForAll([draggingElement]);
     }
   };
@@ -4023,9 +4384,11 @@ class App extends React.Component<AppProps, AppState> {
         transformHandleType,
         selectedElements,
         pointerDownState.resize.arrowDirection,
-        getRotateWithDiscreteAngleKey(event),
-        getResizeCenterPointKey(event),
-        getResizeWithSidesSameLengthKey(event),
+        shouldRotateWithDiscreteAngle(event),
+        shouldResizeFromCenter(event),
+        selectedElements.length === 1 && selectedElements[0].type === "image"
+          ? !shouldMaintainAspectRatio(event)
+          : shouldMaintainAspectRatio(event),
         resizeX,
         resizeY,
         pointerDownState.resize.center.x,
