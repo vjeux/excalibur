@@ -1,3 +1,4 @@
+import { THEME } from "../../constants";
 import { NonDeletedExcalidrawElement } from "../../element/types";
 import * as exportUtils from "../../scene/export";
 import {
@@ -54,14 +55,19 @@ describe("exportToSvg", () => {
       ELEMENTS,
       {
         ...DEFAULT_OPTIONS,
-        exportWithDarkMode: true,
+        exportTheme: THEME.DARK,
       },
       null,
     );
 
-    expect(svgElement.getAttribute("filter")).toMatchInlineSnapshot(
-      `"themeFilter"`,
-    );
+    const css = svgElement.querySelector("style")?.innerHTML;
+    expect(css).not.toBeNull();
+
+    // find the filter value with a regex, to be sure its under the right CSS rule
+    const match = css?.match(/#group-[\w-]+,\s*image\s*\{\s*filter:\s*(.*?);/);
+    expect(match).not.toBeNull();
+
+    expect(match ? match[1] : "").toMatchInlineSnapshot(`"themeFilter"`);
   });
 
   it("with exportPadding", async () => {

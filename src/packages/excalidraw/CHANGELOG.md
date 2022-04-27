@@ -29,6 +29,7 @@ Please add the latest change on the top under the correct section.
 
 - Rename `appState.elementLocked` to `appState.activeTool.locked` [#4983](https://github.com/excalidraw/excalidraw/pull/4983).
 - Expose [`serializeLibraryAsJSON`](https://github.com/excalidraw/excalidraw/blob/master/src/packages/excalidraw/README.md#serializeLibraryAsJSON) helper that we use when saving Excalidraw Library to a file.
+- Replace `appState.exportWithDarkMode` with `appState.exportTheme`.
 
 ##### BREAKING CHANGE
 
@@ -39,6 +40,10 @@ You will need to pass `activeTool.locked` instead of `elementType` from now onwa
 ##### BREAKING CHANGE
 
 You will need to pass `activeTool` instead of `elementType` from now onwards in `appState`
+
+##### BREAKING CHANGE
+
+You will need to replace usage of `exportWithDarkMode` by `exportTheme`
 
 ### Build
 
@@ -59,6 +64,21 @@ In Browser :point_down:
 ```js
 React.createElement(ExcalidrawLib.Excalidraw, opts);
 ```
+
+### Excalidraw Library
+
+#### Features
+
+- Support system theme in the `DarkModeToggle` component
+- Add a new system theme to use when exporting SVGs
+
+#### Refactor
+
+- Wrap all elements of an exported SVG in a group to apply dark theme filter
+
+#### Style
+
+- Improve local strings for system theme support
 
 ## 0.11.0 (2022-02-17)
 
