@@ -1,19 +1,35 @@
 @import "../../css/variables.module";
 
 .excalidraw {
+  [data-dropdown-menu-trigger] + [data-radix-popper-content-wrapper] {
+    z-index: 2 !important;
+  }
+
   .dropdown-menu {
-    position: absolute;
-    top: 100%;
-    margin-top: 0.25rem;
+    max-width: 16rem;
+
+    &__submenu-trigger {
+      &[aria-expanded="true"] {
+        .dropdown-menu-item {
+          background-color: var(--button-hover-bg);
+        }
+      }
+    }
+
+    &__submenu-trigger-icon {
+      margin-left: auto;
+      opacity: 0.5;
+    }
+
+    .radix-menu-item {
+      &:focus-visible {
+        outline: none;
+      }
+    }
 
     &--mobile {
-      bottom: 55px;
-      top: auto;
-      left: 0;
-      width: 100%;
-      row-gap: 0.75rem;
-
       .dropdown-menu-container {
+        grid-template-columns: minmax(0, 1fr);
         padding: 8px 8px;
         box-sizing: border-box;
         background-color: var(--island-bg-color);
@@ -45,6 +61,7 @@
       box-sizing: border-box;
       font-weight: normal;
       font-family: inherit;
+      justify-content: flex-start;
     }
 
     .dropdown-menu-item {

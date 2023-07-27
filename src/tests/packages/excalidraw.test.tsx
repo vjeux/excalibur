@@ -1,4 +1,9 @@
-import { fireEvent, GlobalTestState, toggleMenu, render } from "../test-utils";
+import {
+  fireEvent,
+  GlobalTestState,
+  render,
+  togglePopover,
+} from "../test-utils";
 import { Excalidraw, Footer, MainMenu } from "../../packages/excalidraw/index";
 import { queryByText, queryByTestId } from "@testing-library/react";
 import { GRID_SIZE, THEME } from "../../constants";
@@ -11,7 +16,7 @@ describe("<Excalidraw/>", () => {
   afterEach(() => {
     const menu = document.querySelector(".dropdown-menu");
     if (menu) {
-      toggleMenu(document.querySelector(".excalidraw")!);
+      togglePopover("Main menu");
     }
   });
 
@@ -130,7 +135,7 @@ describe("<Excalidraw/>", () => {
           <Excalidraw UIOptions={undefined} />,
         );
         //open menu
-        toggleMenu(container);
+        togglePopover("Main menu");
         expect(queryByTestId(container, "dropdown-menu")).toMatchSnapshot();
       });
 
@@ -139,7 +144,7 @@ describe("<Excalidraw/>", () => {
           <Excalidraw UIOptions={{ canvasActions: { clearCanvas: false } }} />,
         );
         //open menu
-        toggleMenu(container);
+        togglePopover("Main menu");
         expect(queryByTestId(container, "clear-canvas-button")).toBeNull();
       });
 
@@ -148,7 +153,7 @@ describe("<Excalidraw/>", () => {
           <Excalidraw UIOptions={{ canvasActions: { export: false } }} />,
         );
         //open menu
-        toggleMenu(container);
+        togglePopover("Main menu");
         expect(queryByTestId(container, "json-export-button")).toBeNull();
       });
 
@@ -157,7 +162,7 @@ describe("<Excalidraw/>", () => {
           <Excalidraw UIOptions={{ canvasActions: { saveAsImage: false } }} />,
         );
         //open menu
-        toggleMenu(container);
+        togglePopover("Main menu");
         expect(queryByTestId(container, "image-export-button")).toBeNull();
       });
 
@@ -176,7 +181,7 @@ describe("<Excalidraw/>", () => {
           />,
         );
         //open menu
-        toggleMenu(container);
+        togglePopover("Main menu");
         expect(queryByTestId(container, "save-as-button")).toBeNull();
       });
 
@@ -187,7 +192,7 @@ describe("<Excalidraw/>", () => {
           />,
         );
         //open menu
-        toggleMenu(container);
+        togglePopover("Main menu");
         expect(queryByTestId(container, "save-button")).toBeNull();
       });
 
@@ -198,7 +203,7 @@ describe("<Excalidraw/>", () => {
           />,
         );
         //open menu
-        toggleMenu(container);
+        togglePopover("Main menu");
         expect(queryByTestId(container, "canvas-background-label")).toBeNull();
         expect(queryByTestId(container, "canvas-background-picker")).toBeNull();
       });
@@ -214,7 +219,7 @@ describe("<Excalidraw/>", () => {
           </Excalidraw>,
         );
         //open menu
-        toggleMenu(container);
+        togglePopover("Main menu");
         expect(queryByTestId(container, "canvas-background-label")).toBeNull();
         expect(queryByTestId(container, "canvas-background-picker")).toBeNull();
       });
@@ -224,7 +229,7 @@ describe("<Excalidraw/>", () => {
           <Excalidraw UIOptions={{ canvasActions: { toggleTheme: false } }} />,
         );
         //open menu
-        toggleMenu(container);
+        togglePopover("Main menu");
         expect(queryByTestId(container, "toggle-dark-mode")).toBeNull();
       });
 
@@ -245,8 +250,8 @@ describe("<Excalidraw/>", () => {
           </Excalidraw>,
         );
         //open menu
-        toggleMenu(container);
         // load button shouldn't be rendered since `UIActions.canvasActions.loadScene` is `false`
+        togglePopover("Main menu");
         expect(queryByTestId(container, "load-button")).toBeNull();
       });
     });
@@ -257,7 +262,7 @@ describe("<Excalidraw/>", () => {
       const { container } = await render(<Excalidraw />);
       expect(h.state.theme).toBe(THEME.LIGHT);
       //open menu
-      toggleMenu(container);
+      togglePopover("Main menu");
       const darkModeToggle = queryByTestId(container, "toggle-dark-mode");
       expect(darkModeToggle).toBeTruthy();
     });
@@ -267,7 +272,7 @@ describe("<Excalidraw/>", () => {
 
       expect(h.state.theme).toBe(THEME.DARK);
       //open menu
-      toggleMenu(container);
+      togglePopover("Main menu");
       expect(queryByTestId(container, "toggle-dark-mode")).toBe(null);
     });
 
@@ -280,7 +285,7 @@ describe("<Excalidraw/>", () => {
       );
       expect(h.state.theme).toBe(THEME.DARK);
       //open menu
-      toggleMenu(container);
+      togglePopover("Main menu");
       const darkModeToggle = queryByTestId(container, "toggle-dark-mode");
       expect(darkModeToggle).toBeTruthy();
     });
@@ -294,7 +299,7 @@ describe("<Excalidraw/>", () => {
       );
       expect(h.state.theme).toBe(THEME.DARK);
       //open menu
-      toggleMenu(container);
+      togglePopover("Main menu");
       const darkModeToggle = queryByTestId(container, "toggle-dark-mode");
       expect(darkModeToggle).toBe(null);
     });
@@ -304,7 +309,7 @@ describe("<Excalidraw/>", () => {
     it('should allow editing name when the name prop is "undefined"', async () => {
       const { container } = await render(<Excalidraw />);
       //open menu
-      toggleMenu(container);
+      togglePopover("Main menu");
       fireEvent.click(queryByTestId(container, "image-export-button")!);
       const textInput: HTMLInputElement | null = document.querySelector(
         ".ImageExportModal .ImageExportModal__preview__filename .TextInput",
@@ -317,7 +322,7 @@ describe("<Excalidraw/>", () => {
       const name = "test";
       const { container } = await render(<Excalidraw name={name} />);
       //open menu
-      toggleMenu(container);
+      togglePopover("Main menu");
       await fireEvent.click(queryByTestId(container, "image-export-button")!);
       const textInput = document.querySelector(
         ".ImageExportModal .ImageExportModal__preview__filename .TextInput",
@@ -370,7 +375,7 @@ describe("<Excalidraw/>", () => {
         </Excalidraw>,
       );
       //open menu
-      toggleMenu(container);
+      togglePopover("Main menu");
       expect(queryByTestId(container, "dropdown-menu")).toMatchSnapshot();
     });
 
@@ -389,7 +394,7 @@ describe("<Excalidraw/>", () => {
 
       const { container } = await render(<CustomExcalidraw />);
       //open menu
-      toggleMenu(container);
+      togglePopover("Main menu");
 
       expect(h.state.theme).toBe(THEME.LIGHT);
 

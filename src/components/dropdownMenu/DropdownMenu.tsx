@@ -13,6 +13,8 @@ import {
 
 import "./DropdownMenu.scss";
 
+import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
+
 const DropdownMenu = ({
   children,
   open,
@@ -22,11 +24,12 @@ const DropdownMenu = ({
 }) => {
   const MenuTriggerComp = getMenuTriggerComponent(children);
   const MenuContentComp = getMenuContentComponent(children);
+
   return (
-    <>
+    <DropdownMenuPrimitive.Root open={open} modal={false}>
       {MenuTriggerComp}
-      {open && MenuContentComp}
-    </>
+      {MenuContentComp}
+    </DropdownMenuPrimitive.Root>
   );
 };
 

@@ -1,13 +1,13 @@
 import { Button } from "../Button";
+import MenuItemContent from "./DropdownMenuItemContent";
 import {
   getDropdownMenuItemClassName,
   useHandleDropdownMenuItemClick,
 } from "./common";
-import MenuItemContent from "./DropdownMenuItemContent";
 
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 
-const DropdownMenuItem = ({
+const DropdownMenuSubItem = ({
   icon,
   onSelect,
   children,
@@ -29,6 +29,7 @@ const DropdownMenuItem = ({
         {...rest}
         onClick={handleClick}
         onSelect={() => {}}
+        type="button"
         className={getDropdownMenuItemClassName(className)}
         title={rest.title ?? rest["aria-label"]}
       >
@@ -40,5 +41,5 @@ const DropdownMenuItem = ({
   );
 };
 
-export default DropdownMenuItem;
-DropdownMenuItem.displayName = "DropdownMenuItem";
+export default DropdownMenuSubItem;
+DropdownMenuSubItem.displayName = "DropdownMenuSubItem";
