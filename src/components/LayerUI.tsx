@@ -32,9 +32,11 @@ import { UserList } from "./UserList";
 import { JSONExportDialog } from "./JSONExportDialog";
 import { PenModeButton } from "./PenModeButton";
 import { trackEvent } from "../analytics";
-import { useDevice } from "../components/App";
+import { useDevice, useExcalidrawAppState } from "../components/App";
+import { getLanguage } from "../i18n";
 import { Stats } from "./Stats";
 import { actionToggleStats } from "../actions/actionToggleStats";
+import { actionSaveToActiveFile } from "../actions/actionExport";
 import Footer from "./footer/Footer";
 import { isSidebarDockedAtom } from "./Sidebar/Sidebar";
 import { jotaiScope } from "../jotai";
@@ -134,6 +136,7 @@ const LayerUI = ({
 }: LayerUIProps) => {
   const device = useDevice();
   const tunnels = useInitializeTunnels();
+  const { fileHandle } = useExcalidrawAppState();
 
   const [eyeDropperState, setEyeDropperState] = useAtom(
     activeEyeDropperAtom,
@@ -175,14 +178,35 @@ const LayerUI = ({
     );
   };
 
-  const renderCanvasActions = () => (
-    <div style={{ position: "relative" }}>
-      {/* wrapping to Fragment stops React from occasionally complaining
+  const renderCanvasActions = () => {
+    const renderFilename = fileHandle !== null;
+    return (
+      <div
+        className={clsx("render-canvas-actions", {
+          "render-canvas-actions-show-filename": renderFilename,
+        })}
+      >
+        {/* wrapping to Fragment stops React from occasionally complaining
                 about identical Keys */}
-      <tunnels.MainMenuTunnel.Out />
-      {renderWelcomeScreen && <tunnels.WelcomeScreenMenuHintTunnel.Out />}
-    </div>
-  );
+        <tunnels.MainMenuTunnel.Out />
+        {renderFilename && (
+          <button
+            onClick={() => {
+              actionManager.executeAction(actionSaveToActiveFile);
+            }}
+            title={`${fileHandle.name}`}
+            className={clsx("filename-save-button", {
+              "rtl-filename-save-button-text": getLanguage().rtl,
+            })}
+            aria-label={`${t("buttons.save")}`}
+          >
+            {fileHandle.name}
+          </button>
+        )}
+        {renderWelcomeScreen && <tunnels.WelcomeScreenMenuHintTunnel.Out />}
+      </div>
+    );
+  };
 
   const renderSelectedShapeActions = () => (
     <Section
@@ -218,10 +242,12 @@ const LayerUI = ({
     return (
       <FixedSideContainer side="top">
         <div className="App-menu App-menu_top">
-          <Stack.Col gap={6} className={clsx("App-menu_top__left")}>
-            {renderCanvasActions()}
-            {shouldRenderSelectedShapeActions && renderSelectedShapeActions()}
-          </Stack.Col>
+          <div className="App-menu_top_left_container">
+            <Stack.Col gap={6} className={clsx("App-menu_top__left")}>
+              {renderCanvasActions()}
+              {shouldRenderSelectedShapeActions && renderSelectedShapeActions()}
+            </Stack.Col>
+          </div>
           {!appState.viewModeEnabled && (
             <Section heading="shapes" className="shapes-section">
               {(heading: React.ReactNode) => (
