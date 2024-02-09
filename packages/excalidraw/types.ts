@@ -323,6 +323,7 @@ export interface AppState {
   userToFollow: UserToFollow | null;
   /** the clientIds of the users following the current user */
   followedBy: Set<SocketId>;
+  scrollConstraints: ScrollConstraints | null;
 }
 
 export type UIAppState = Omit<
@@ -463,6 +464,7 @@ export interface ExcalidrawProps {
   onScrollChange?: (scrollX: number, scrollY: number, zoom: Zoom) => void;
   onUserFollow?: (payload: OnUserFollowedPayload) => void;
   children?: React.ReactNode;
+  scrollConstraints?: AppState["scrollConstraints"];
   validateEmbeddable?:
     | boolean
     | string[]
@@ -697,6 +699,7 @@ export type ExcalidrawImperativeAPI = {
   onUserFollow: (
     callback: (payload: OnUserFollowedPayload) => void,
   ) => UnsubscribeCallback;
+  setScrollConstraints: InstanceType<typeof App>["setScrollConstraints"];
 };
 
 export type Device = Readonly<{
@@ -732,6 +735,12 @@ export type FrameNameBoundsCache = {
   >;
 };
 
+export type AnimateTranslateCanvasValues = {
+  scrollX: AppState["scrollX"];
+  scrollY: AppState["scrollY"];
+  zoom: AppState["zoom"]["value"];
+};
+
 export type KeyboardModifiersObject = {
   ctrlKey: boolean;
   shiftKey: boolean;
@@ -756,3 +765,13 @@ export type EmbedsValidationStatus = Map<
 >;
 
 export type ElementsPendingErasure = Set<ExcalidrawElement["id"]>;
+
+export type ScrollConstraints = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  animateOnNextUpdate?: boolean;
+  viewportZoomFactor?: number;
+  lockZoom?: boolean;
+};

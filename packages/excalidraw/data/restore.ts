@@ -48,7 +48,7 @@ import { normalizeLink } from "./url";
 
 type RestoredAppState = Omit<
   AppState,
-  "offsetTop" | "offsetLeft" | "width" | "height"
+  "offsetTop" | "offsetLeft" | "width" | "height" | "scrollConstraints"
 >;
 
 export const AllowedExcalidrawActiveTools: Record<

@@ -17,7 +17,7 @@ const defaultExportScale = EXPORT_SCALES.includes(devicePixelRatio)
 
 export const getDefaultAppState = (): Omit<
   AppState,
-  "offsetTop" | "offsetLeft" | "width" | "height"
+  "offsetTop" | "offsetLeft" | "width" | "height" | "scrollConstraints"
 > => {
   return {
     showWelcomeScreen: false,
@@ -219,6 +219,7 @@ const APP_STATE_STORAGE_CONF = (<
   objectsSnapModeEnabled: { browser: true, export: false, server: false },
   userToFollow: { browser: false, export: false, server: false },
   followedBy: { browser: false, export: false, server: false },
+  scrollConstraints: { browser: false, export: false, server: false },
 });
 
 const _clearAppStateForStorage = <

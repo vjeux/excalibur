@@ -551,7 +551,7 @@ const LayerUI = ({
                 renderCustomStats={renderCustomStats}
               />
             )}
-            {appState.scrolledOutside && (
+            {appState.scrolledOutside && !appState.scrollConstraints && (
               <button
                 className="scroll-back-to-content"
                 onClick={() => {

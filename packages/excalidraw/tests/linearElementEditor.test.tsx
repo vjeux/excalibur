@@ -940,8 +940,8 @@ describe("Test Linear Elements", () => {
       ]);
       expect((h.elements[1] as ExcalidrawTextElementWithContainer).text)
         .toMatchInlineSnapshot(`
-          "Online whiteboard 
-          collaboration made 
+          "Online whiteboard
+          collaboration made
           easy"
         `);
     });
@@ -974,8 +974,8 @@ describe("Test Linear Elements", () => {
       ]);
       expect((h.elements[1] as ExcalidrawTextElementWithContainer).text)
         .toMatchInlineSnapshot(`
-          "Online whiteboard 
-          collaboration made 
+          "Online whiteboard
+          collaboration made
           easy"
         `);
     });
@@ -1020,8 +1020,8 @@ describe("Test Linear Elements", () => {
           }
         `);
       expect(textElement.text).toMatchInlineSnapshot(`
-        "Online whiteboard 
-        collaboration made 
+        "Online whiteboard
+        collaboration made
         easy"
       `);
       expect(
@@ -1060,7 +1060,7 @@ describe("Test Linear Elements", () => {
         `);
       expect((h.elements[1] as ExcalidrawTextElementWithContainer).text)
         .toMatchInlineSnapshot(`
-          "Online whiteboard 
+          "Online whiteboard
           collaboration made easy"
         `);
       expect(
@@ -1098,8 +1098,8 @@ describe("Test Linear Elements", () => {
           }
         `);
       expect(textElement.text).toMatchInlineSnapshot(`
-        "Online whiteboard 
-        collaboration made 
+        "Online whiteboard
+        collaboration made
         easy"
       `);
       const points = LinearElementEditor.getPointsGlobalCoordinates(container);
@@ -1123,7 +1123,7 @@ describe("Test Linear Elements", () => {
           }
         `);
       expect(textElement.text).toMatchInlineSnapshot(`
-        "Online whiteboard 
+        "Online whiteboard
         collaboration made easy"
       `);
     });
@@ -1175,7 +1175,7 @@ describe("Test Linear Elements", () => {
           getBoundTextMaxWidth(arrow, null),
         ),
       ).toMatchInlineSnapshot(`
-        "Online whiteboard 
+        "Online whiteboard
         collaboration made easy"
       `);
       const handleBindTextResizeSpy = vi.spyOn(
@@ -1204,8 +1204,8 @@ describe("Test Linear Elements", () => {
           getBoundTextMaxWidth(arrow, null),
         ),
       ).toMatchInlineSnapshot(`
-        "Online whiteboard 
-        collaboration made 
+        "Online whiteboard
+        collaboration made
         easy"
       `);
     });
