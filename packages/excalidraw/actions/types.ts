@@ -92,7 +92,6 @@ export type ActionName =
   | "zoomToFitSelection"
   | "zoomToFitSelectionInViewport"
   | "changeFontFamily"
-  | "changeTextAlign"
   | "changeVerticalAlign"
   | "toggleFullScreen"
   | "toggleShortcuts"
@@ -134,7 +133,10 @@ export type ActionName =
   | "commandPalette"
   | "autoResize"
   | "elementStats"
-  | "searchMenu";
+  | "searchMenu"
+  | "changeTextAlignLeft"
+  | "changeTextAlignRight"
+  | "changeTextAlignCenter";
 
 export type PanelComponentProps = {
   elements: readonly ExcalidrawElement[];
