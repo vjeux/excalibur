@@ -1,5 +1,4 @@
 import { MIN_FONT_SIZE, SHIFT_LOCKING_ANGLE } from "../constants";
-import { rescalePoints } from "../points";
 import type {
   ExcalidrawLinearElement,
   ExcalidrawTextElement,
@@ -10,16 +9,15 @@ import type {
   ExcalidrawImageElement,
   ElementsMap,
   SceneElementsMap,
+  Bounds,
 } from "./types";
 import type { Mutable } from "../utility-types";
 import {
   getElementAbsoluteCoords,
   getCommonBounds,
   getResizedElementAbsoluteCoords,
-  getCommonBoundingBox,
   getElementBounds,
 } from "./bounds";
-import type { BoundingBox } from "./bounds";
 import {
   isArrowElement,
   isBoundToContainer,
@@ -62,6 +60,7 @@ import {
   pointFromPair,
   pointRotateRads,
   type Radians,
+  pointRescaleFromTopLeft,
   type LocalPoint,
 } from "../../math";
 
@@ -239,10 +238,10 @@ export const rescalePointsInElement = (
 ) =>
   isLinearElement(element) || isFreeDrawElement(element)
     ? {
-        points: rescalePoints(
+        points: pointRescaleFromTopLeft(
           0,
           width,
-          rescalePoints(1, height, element.points, normalizePoints),
+          pointRescaleFromTopLeft(1, height, element.points, normalizePoints),
           normalizePoints,
         ),
       }
@@ -571,8 +570,7 @@ export const getResizeOffsetXY = (
   transformHandleType: MaybeTransformHandleType,
   selectedElements: NonDeletedExcalidrawElement[],
   elementsMap: ElementsMap,
-  x: number,
-  y: number,
+  [x, y]: GlobalPoint,
 ): [number, number] => {
   const [x1, y1, x2, y2] =
     selectedElements.length === 1
@@ -1117,11 +1115,13 @@ const getNextMultipleWidthAndHeightFromPointer = (
     ];
   }, [] as ExcalidrawTextElementWithContainer[]);
 
-  const originalBoundingBox = getCommonBoundingBox(
+  const originalBoundingBox = getCommonBounds(
     originalElementsArray.map((orig) => orig).concat(boundTextElements),
   );
 
-  const { minX, minY, maxX, maxY, midX, midY } = originalBoundingBox;
+  const [minX, minY, maxX, maxY] = originalBoundingBox;
+  const midX = (minX + maxX) / 2;
+  const midY = (minY + maxY) / 2;
   const width = maxX - minX;
   const height = maxY - minY;
 
@@ -1219,7 +1219,7 @@ export const resizeMultipleElements = (
     flipByY?: boolean;
     originalElementsMap?: ElementsMap;
     // added to improve performance
-    originalBoundingBox?: BoundingBox;
+    originalBoundingBox?: Bounds;
   } = {},
 ) => {
   // in the case of just flipping, there is no need to specify the next width and height
@@ -1260,7 +1260,7 @@ export const resizeMultipleElements = (
     [],
   );
 
-  let boundingBox: BoundingBox;
+  let boundingBox: Bounds;
 
   if (originalBoundingBox) {
     boundingBox = originalBoundingBox;
@@ -1290,11 +1290,13 @@ export const resizeMultipleElements = (
       ];
     }, [] as ExcalidrawTextElementWithContainer[]);
 
-    boundingBox = getCommonBoundingBox(
+    boundingBox = getCommonBounds(
       targetElements.map(({ orig }) => orig).concat(boundTextElements),
     );
   }
-  const { minX, minY, maxX, maxY, midX, midY } = boundingBox;
+  const [minX, minY, maxX, maxY] = boundingBox;
+  const midX = (minX + maxX) / 2;
+  const midY = (minY + maxY) / 2;
   const width = maxX - minX;
   const height = maxY - minY;
 

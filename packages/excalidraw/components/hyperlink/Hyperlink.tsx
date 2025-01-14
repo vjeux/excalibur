@@ -34,7 +34,7 @@ import { trackEvent } from "../../analytics";
 import { useAppProps, useDevice, useExcalidrawAppState } from "../App";
 import { isEmbeddableElement } from "../../element/typeChecks";
 import { getLinkHandleFromCoords } from "./helpers";
-import { pointFrom, type GlobalPoint } from "../../../math";
+import { pointFrom, type ViewportPoint } from "../../../math";
 import { isElementLink } from "../../element/elementLink";
 
 import "./Hyperlink.scss";
@@ -350,8 +350,8 @@ const getCoordsForPopover = (
   elementsMap: ElementsMap,
 ) => {
   const [x1, y1] = getElementAbsoluteCoords(element, elementsMap);
-  const { x: viewportX, y: viewportY } = sceneCoordsToViewportCoords(
-    { sceneX: x1 + element.width / 2, sceneY: y1 },
+  const [viewportX, viewportY] = sceneCoordsToViewportCoords(
+    pointFrom(x1 + element.width / 2, y1),
     appState,
   );
   const x = viewportX - appState.offsetLeft - POPUP_WIDTH / 2;
@@ -413,15 +413,15 @@ const renderTooltip = (
   );
 
   const linkViewportCoords = sceneCoordsToViewportCoords(
-    { sceneX: linkX, sceneY: linkY },
+    pointFrom(linkX, linkY),
     appState,
   );
 
   updateTooltipPosition(
     tooltipDiv,
     {
-      left: linkViewportCoords.x,
-      top: linkViewportCoords.y,
+      left: linkViewportCoords[0],
+      top: linkViewportCoords[1],
       width: linkWidth,
       height: linkHeight,
     },
@@ -445,25 +445,22 @@ const shouldHideLinkPopup = (
   element: NonDeletedExcalidrawElement,
   elementsMap: ElementsMap,
   appState: AppState,
-  [clientX, clientY]: GlobalPoint,
+  viewportCoords: ViewportPoint,
 ): Boolean => {
-  const { x: sceneX, y: sceneY } = viewportCoordsToSceneCoords(
-    { clientX, clientY },
-    appState,
-  );
+  const sceneCoords = viewportCoordsToSceneCoords(viewportCoords, appState);
 
   const threshold = 15 / appState.zoom.value;
   // hitbox to prevent hiding when hovered in element bounding box
-  if (hitElementBoundingBox(sceneX, sceneY, element, elementsMap)) {
+  if (hitElementBoundingBox(sceneCoords, element, elementsMap)) {
     return false;
   }
   const [x1, y1, x2] = getElementAbsoluteCoords(element, elementsMap);
   // hit box to prevent hiding when hovered in the vertical area between element and popover
   if (
-    sceneX >= x1 &&
-    sceneX <= x2 &&
-    sceneY >= y1 - SPACE_BOTTOM &&
-    sceneY <= y1
+    sceneCoords[0] >= x1 &&
+    sceneCoords[0] <= x2 &&
+    sceneCoords[1] >= y1 - SPACE_BOTTOM &&
+    sceneCoords[1] <= y1
   ) {
     return false;
   }
@@ -475,10 +472,11 @@ const shouldHideLinkPopup = (
   );
 
   if (
-    clientX >= popoverX - threshold &&
-    clientX <= popoverX + POPUP_WIDTH + POPUP_PADDING * 2 + threshold &&
-    clientY >= popoverY - threshold &&
-    clientY <= popoverY + threshold + POPUP_PADDING * 2 + POPUP_HEIGHT
+    viewportCoords[0] >= popoverX - threshold &&
+    viewportCoords[0] <=
+      popoverX + POPUP_WIDTH + POPUP_PADDING * 2 + threshold &&
+    viewportCoords[1] >= popoverY - threshold &&
+    viewportCoords[1] <= popoverY + threshold + POPUP_PADDING * 2 + POPUP_HEIGHT
   ) {
     return false;
   }

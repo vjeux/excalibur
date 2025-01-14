@@ -1,5 +1,10 @@
 import Pool from "es6-promise-pool";
-import { average } from "../math";
+import {
+  average,
+  type GlobalPoint,
+  pointFrom,
+  type ViewportPoint,
+} from "../math";
 import { COLOR_PALETTE } from "./colors";
 import type { EVENT } from "./constants";
 import {
@@ -367,8 +372,6 @@ export const removeSelection = () => {
   }
 };
 
-export const distance = (x: number, y: number) => Math.abs(x - y);
-
 export const updateActiveTool = (
   appState: Pick<AppState, "activeTool">,
   data: ((
@@ -423,7 +426,7 @@ export const getShortcutKey = (shortcut: string): string => {
 };
 
 export const viewportCoordsToSceneCoords = (
-  { clientX, clientY }: { clientX: number; clientY: number },
+  [clientX, clientY]: ViewportPoint,
   {
     zoom,
     offsetLeft,
@@ -437,15 +440,15 @@ export const viewportCoordsToSceneCoords = (
     scrollX: number;
     scrollY: number;
   },
-) => {
+): GlobalPoint => {
   const x = (clientX - offsetLeft) / zoom.value - scrollX;
   const y = (clientY - offsetTop) / zoom.value - scrollY;
 
-  return { x, y };
+  return pointFrom<GlobalPoint>(x, y);
 };
 
 export const sceneCoordsToViewportCoords = (
-  { sceneX, sceneY }: { sceneX: number; sceneY: number },
+  [sceneX, sceneY]: GlobalPoint,
   {
     zoom,
     offsetLeft,
@@ -459,10 +462,10 @@ export const sceneCoordsToViewportCoords = (
     scrollX: number;
     scrollY: number;
   },
-) => {
+): ViewportPoint => {
   const x = (sceneX + scrollX) * zoom.value + offsetLeft;
   const y = (sceneY + scrollY) * zoom.value + offsetTop;
-  return { x, y };
+  return pointFrom(x, y);
 };
 
 export const getGlobalCSSVariable = (name: string) =>

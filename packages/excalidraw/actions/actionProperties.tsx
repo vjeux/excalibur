@@ -101,12 +101,7 @@ import {
   isSomeElementSelected,
 } from "../scene";
 import { hasStrokeColor } from "../scene/comparisons";
-import {
-  arrayToMap,
-  getFontFamilyString,
-  getShortcutKey,
-  tupleToCoors,
-} from "../utils";
+import { arrayToMap, getFontFamilyString, getShortcutKey } from "../utils";
 import { register } from "./register";
 import { StoreAction } from "../store";
 import { Fonts, getLineHeight } from "../fonts";
@@ -1599,7 +1594,7 @@ export const actionChangeArrowType = register({
           const startHoveredElement =
             !newElement.startBinding &&
             getHoveredElementForBinding(
-              tupleToCoors(startGlobalPoint),
+              startGlobalPoint,
               elements,
               elementsMap,
               appState.zoom,
@@ -1608,7 +1603,7 @@ export const actionChangeArrowType = register({
           const endHoveredElement =
             !newElement.endBinding &&
             getHoveredElementForBinding(
-              tupleToCoors(endGlobalPoint),
+              endGlobalPoint,
               elements,
               elementsMap,
               appState.zoom,
@@ -1632,7 +1627,6 @@ export const actionChangeArrowType = register({
                 startGlobalPoint,
                 endGlobalPoint,
                 startHoveredElement,
-                elementsMap,
               )
             : startGlobalPoint;
           const finalEndPoint = endHoveredElement
@@ -1640,7 +1634,6 @@ export const actionChangeArrowType = register({
                 endGlobalPoint,
                 startGlobalPoint,
                 endHoveredElement,
-                elementsMap,
               )
             : endGlobalPoint;
 

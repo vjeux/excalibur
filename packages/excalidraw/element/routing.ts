@@ -1,5 +1,6 @@
 import type { Radians } from "../../math";
 import {
+  pointExtent,
   pointFrom,
   pointScaleFromOrigin,
   pointTranslate,
@@ -11,14 +12,12 @@ import {
   type LocalPoint,
   type Vector,
 } from "../../math";
-import BinaryHeap from "../binaryheap";
-import { getSizeFromPoints } from "../points";
+import BinaryHeap from "../../utils/binaryheap";
 import { aabbForElement, pointInsideBounds } from "../shapes";
 import type { AppState } from "../types";
-import { isAnyTrue, toBrandedType, tupleToCoors } from "../utils";
+import { isAnyTrue, toBrandedType } from "../utils";
 import {
   bindPointToSnapToElementOutline,
-  distanceToBindableElement,
   avoidRectangularCorner,
   getHoveredElementForBinding,
   FIXED_BINDING_DISTANCE,
@@ -26,7 +25,7 @@ import {
   getGlobalFixedPointForBindableElement,
   snapToMid,
 } from "./binding";
-import type { Bounds } from "./bounds";
+import { distanceToBindableElement } from "./distance";
 import type { Heading } from "./heading";
 import {
   compareHeading,
@@ -41,6 +40,7 @@ import type { ElementUpdate } from "./mutateElement";
 import { mutateElement } from "./mutateElement";
 import { isBindableElement, isRectanguloidElement } from "./typeChecks";
 import type {
+  Bounds,
   ExcalidrawElbowArrowElement,
   NonDeletedSceneElementsMap,
   SceneElementsMap,
@@ -963,7 +963,7 @@ const normalizedArrowElementUpdate = (
     points,
     x: offsetX + (externalOffsetX ?? 0),
     y: offsetY + (externalOffsetY ?? 0),
-    ...getSizeFromPoints(points),
+    ...pointExtent(points),
   };
 };
 
@@ -1031,7 +1031,7 @@ const getGlobalPoint = (
 
     // NOTE: Resize scales the binding position point too, so we need to update it
     return Math.abs(
-      distanceToBindableElement(boundElement, fixedGlobalPoint, elementsMap) -
+      distanceToBindableElement(boundElement, fixedGlobalPoint) -
         FIXED_BINDING_DISTANCE,
     ) > 0.01
       ? getSnapPoint(initialPoint, otherPoint, boundElement, elementsMap)
@@ -1051,7 +1051,6 @@ const getSnapPoint = (
     isRectanguloidElement(element) ? avoidRectangularCorner(element, p) : p,
     otherPoint,
     element,
-    elementsMap,
   );
 
 const getBindPointHeading = (
@@ -1068,9 +1067,12 @@ const getBindPointHeading = (
     hoveredElement &&
       aabbForElement(
         hoveredElement,
-        Array(4).fill(
-          distanceToBindableElement(hoveredElement, p, elementsMap),
-        ) as [number, number, number, number],
+        Array(4).fill(distanceToBindableElement(hoveredElement, p)) as [
+          number,
+          number,
+          number,
+          number,
+        ],
       ),
     elementsMap,
     origPoint,
@@ -1090,14 +1092,14 @@ const getHoveredElements = (
   const elements = Array.from(elementsMap.values());
   return [
     getHoveredElementForBinding(
-      tupleToCoors(origStartGlobalPoint),
+      origStartGlobalPoint,
       elements,
       nonDeletedSceneElementsMap,
       zoom,
       true,
     ),
     getHoveredElementForBinding(
-      tupleToCoors(origEndGlobalPoint),
+      origEndGlobalPoint,
       elements,
       nonDeletedSceneElementsMap,
       zoom,

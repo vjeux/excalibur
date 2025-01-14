@@ -1,15 +1,15 @@
 import rough from "roughjs/bin/rough";
 import type {
+  Bounds,
   ExcalidrawElement,
   ExcalidrawFrameLikeElement,
   ExcalidrawTextElement,
   NonDeletedExcalidrawElement,
   NonDeletedSceneElementsMap,
 } from "../element/types";
-import type { Bounds } from "../element/bounds";
 import { getCommonBounds, getElementAbsoluteCoords } from "../element/bounds";
 import { renderSceneToSvg } from "../renderer/staticSvgScene";
-import { arrayToMap, distance, getFontString, toBrandedType } from "../utils";
+import { arrayToMap, getFontString, toBrandedType } from "../utils";
 import type { AppState, BinaryFiles } from "../types";
 import {
   DEFAULT_EXPORT_PADDING,
@@ -41,6 +41,7 @@ import type { RenderableElementsMap } from "./types";
 import { syncInvalidIndices } from "../fractionalIndex";
 import { renderStaticScene } from "../renderer/staticScene";
 import { Fonts } from "../fonts";
+import { rangeExtent, rangeInclusive } from "../../math";
 import { base64ToString, decode, encode, stringToBase64 } from "../data/encode";
 
 const truncateText = (element: ExcalidrawTextElement, maxWidth: number) => {
@@ -539,8 +540,8 @@ const getCanvasSize = (
   exportPadding: number,
 ): Bounds => {
   const [minX, minY, maxX, maxY] = getCommonBounds(elements);
-  const width = distance(minX, maxX) + exportPadding * 2;
-  const height = distance(minY, maxY) + exportPadding * 2;
+  const width = rangeExtent(rangeInclusive(minX, maxX)) + exportPadding * 2;
+  const height = rangeExtent(rangeInclusive(minY, maxY)) + exportPadding * 2;
 
   return [minX, minY, width, height];
 };

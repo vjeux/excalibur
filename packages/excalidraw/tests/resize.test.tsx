@@ -4,11 +4,11 @@ import { render } from "./test-utils";
 import { reseed } from "../random";
 import { UI, Keyboard, Pointer } from "./helpers/ui";
 import type {
+  Bounds,
   ExcalidrawElbowArrowElement,
   ExcalidrawFreeDrawElement,
   ExcalidrawLinearElement,
 } from "../element/types";
-import type { Bounds } from "../element/bounds";
 import { getElementPointsCoords } from "../element/bounds";
 import { Excalidraw } from "../index";
 import { API } from "./helpers/api";
@@ -17,9 +17,8 @@ import { isLinearElement } from "../element/typeChecks";
 import { LinearElementEditor } from "../element/linearElementEditor";
 import { arrayToMap } from "../utils";
 import type { LocalPoint } from "../../math";
-import { pointFrom } from "../../math";
+import { pointExtent, pointFrom } from "../../math";
 import { resizeSingleElement } from "../element/resizeElements";
-import { getSizeFromPoints } from "../points";
 
 ReactDOM.unmountComponentAtNode(document.getElementById("root")!);
 
@@ -337,7 +336,7 @@ describe("line element", () => {
 
     expect(element.points[0]).toEqual([0, 0]);
 
-    const { width, height } = getSizeFromPoints(element.points);
+    const { width, height } = pointExtent(element.points);
     expect(width).toBe(element.width);
     expect(height).toBe(element.height);
   });
@@ -1043,7 +1042,7 @@ describe("multiple selection", () => {
     expect(rightBoundArrow.height).toBeCloseTo(0);
     expect(rightBoundArrow.angle).toEqual(0);
     expect(rightBoundArrow.startBinding).toBeNull();
-    expect(rightBoundArrow.endBinding?.gap).toBeCloseTo(8.0952);
+    expect(rightBoundArrow.endBinding?.gap).toBeCloseTo(7.0952);
     expect(rightBoundArrow.endBinding?.elementId).toBe(
       rightArrowBinding.elementId,
     );

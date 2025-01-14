@@ -27,7 +27,7 @@ import type {
   RenderableElementsMap,
   InteractiveCanvasRenderConfig,
 } from "../scene/types";
-import { distance, getFontString, isRTL } from "../utils";
+import { getFontString, isRTL } from "../utils";
 import rough from "roughjs/bin/rough";
 import type {
   AppState,
@@ -61,7 +61,7 @@ import { LinearElementEditor } from "../element/linearElementEditor";
 import { getContainingFrame } from "../frame";
 import { ShapeCache } from "../scene/ShapeCache";
 import { getVerticalOffset } from "../fonts";
-import { isRightAngleRads } from "../../math";
+import { isRightAngleRads, rangeExtent, rangeInclusive } from "../../math";
 import { getCornerRadius } from "../shapes";
 import { getUncroppedImageElement } from "../element/cropElement";
 
@@ -170,11 +170,11 @@ const cappedElementCanvasSize = (
   const [x1, y1, x2, y2] = getElementAbsoluteCoords(element, elementsMap);
   const elementWidth =
     isLinearElement(element) || isFreeDrawElement(element)
-      ? distance(x1, x2)
+      ? rangeExtent(rangeInclusive(x1, x2))
       : element.width;
   const elementHeight =
     isLinearElement(element) || isFreeDrawElement(element)
-      ? distance(y1, y2)
+      ? rangeExtent(rangeInclusive(y1, y2))
       : element.height;
 
   let width = elementWidth * window.devicePixelRatio + padding * 2;
@@ -233,12 +233,16 @@ const generateElementCanvas = (
 
     canvasOffsetX =
       element.x > x1
-        ? distance(element.x, x1) * window.devicePixelRatio * scale
+        ? rangeExtent(rangeInclusive(element.x, x1)) *
+          window.devicePixelRatio *
+          scale
         : 0;
 
     canvasOffsetY =
       element.y > y1
-        ? distance(element.y, y1) * window.devicePixelRatio * scale
+        ? rangeExtent(rangeInclusive(element.y, y1)) *
+          window.devicePixelRatio *
+          scale
         : 0;
 
     context.translate(canvasOffsetX, canvasOffsetY);
@@ -258,7 +262,7 @@ const generateElementCanvas = (
     context.filter = IMAGE_INVERT_FILTER;
   }
 
-  drawElementOnCanvas(element, rc, context, renderConfig, appState);
+  drawElementOnCanvas(element, rc, context, renderConfig);
 
   context.restore();
 
@@ -270,7 +274,10 @@ const generateElementCanvas = (
     const [x1, y1, x2, y2] = getElementAbsoluteCoords(element, elementsMap);
     // Take max dimensions of arrow canvas so that when canvas is rotated
     // the arrow doesn't get clipped
-    const maxDim = Math.max(distance(x1, x2), distance(y1, y2));
+    const maxDim = Math.max(
+      rangeExtent(rangeInclusive(x1, x2)),
+      rangeExtent(rangeInclusive(y1, y2)),
+    );
     boundTextCanvas.width =
       maxDim * window.devicePixelRatio * scale + padding * scale * 10;
     boundTextCanvas.height =
@@ -385,7 +392,6 @@ const drawElementOnCanvas = (
   rc: RoughCanvas,
   context: CanvasRenderingContext2D,
   renderConfig: StaticCanvasRenderConfig,
-  appState: StaticCanvasAppState,
 ) => {
   switch (element.type) {
     case "rectangle":
@@ -772,7 +778,7 @@ export const renderElement = (
         context.translate(cx, cy);
         context.rotate(element.angle);
         context.translate(-shiftX, -shiftY);
-        drawElementOnCanvas(element, rc, context, renderConfig, appState);
+        drawElementOnCanvas(element, rc, context, renderConfig);
         context.restore();
       } else {
         const elementWithCanvas = generateElementWithCanvas(
@@ -843,7 +849,10 @@ export const renderElement = (
 
           // Take max dimensions of arrow canvas so that when canvas is rotated
           // the arrow doesn't get clipped
-          const maxDim = Math.max(distance(x1, x2), distance(y1, y2));
+          const maxDim = Math.max(
+            rangeExtent(rangeInclusive(x1, x2)),
+            rangeExtent(rangeInclusive(y1, y2)),
+          );
           const padding = getCanvasPadding(element);
           tempCanvas.width =
             maxDim * appState.exportScale + padding * 10 * appState.exportScale;
@@ -865,13 +874,7 @@ export const renderElement = (
 
           tempCanvasContext.translate(-shiftX, -shiftY);
 
-          drawElementOnCanvas(
-            element,
-            tempRc,
-            tempCanvasContext,
-            renderConfig,
-            appState,
-          );
+          drawElementOnCanvas(element, tempRc, tempCanvasContext, renderConfig);
 
           tempCanvasContext.translate(shiftX, shiftY);
 
@@ -910,7 +913,7 @@ export const renderElement = (
           }
 
           context.translate(-shiftX, -shiftY);
-          drawElementOnCanvas(element, rc, context, renderConfig, appState);
+          drawElementOnCanvas(element, rc, context, renderConfig);
         }
 
         context.restore();

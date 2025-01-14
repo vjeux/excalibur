@@ -1,6 +1,6 @@
 import { register } from "./register";
 import { getSelectedElements } from "../scene";
-import { getNonDeletedElements } from "../element";
+import { getCommonBounds, getNonDeletedElements } from "../element";
 import type {
   ExcalidrawArrowElement,
   ExcalidrawElbowArrowElement,
@@ -26,7 +26,6 @@ import {
 } from "../element/typeChecks";
 import { mutateElbowArrow } from "../element/routing";
 import { mutateElement, newElementWith } from "../element/mutateElement";
-import { getCommonBoundingBox } from "../element/bounds";
 
 export const actionFlipHorizontal = register({
   name: "flipHorizontal",
@@ -132,7 +131,9 @@ const flipElements = (
     });
   }
 
-  const { midX, midY } = getCommonBoundingBox(selectedElements);
+  const [minX, minY, maxX, maxY] = getCommonBounds(selectedElements);
+  const midX = (minX + maxX) / 2;
+  const midY = (minY + maxY) / 2;
 
   resizeMultipleElements(selectedElements, elementsMap, "nw", app.scene, {
     flipByX: flipDirection === "horizontal",
@@ -171,8 +172,11 @@ const flipElements = (
     { elbowArrows: [], otherElements: [] },
   );
 
-  const { midX: newMidX, midY: newMidY } =
-    getCommonBoundingBox(selectedElements);
+  const [newMinX, newMinY, newMaxX, newMaxY] =
+    getCommonBounds(selectedElements);
+  const newMidX = (newMinX + newMaxX) / 2;
+  const newMidY = (newMinY + newMaxY) / 2;
+
   const [diffX, diffY] = [midX - newMidX, midY - newMidY];
   otherElements.forEach((element) =>
     mutateElement(element, {
