@@ -1133,7 +1133,6 @@ const getElbowArrowData = (
     arrow.startBinding?.fixedPoint,
     origStartGlobalPoint,
     origEndGlobalPoint,
-    elementsMap,
     startElement,
     hoveredStartElement,
     options?.isDragging,
@@ -1142,7 +1141,6 @@ const getElbowArrowData = (
     arrow.endBinding?.fixedPoint,
     origEndGlobalPoint,
     origStartGlobalPoint,
-    elementsMap,
     endElement,
     hoveredEndElement,
     options?.isDragging,
@@ -2062,19 +2060,13 @@ const getGlobalPoint = (
   fixedPointRatio: [number, number] | undefined | null,
   initialPoint: GlobalPoint,
   otherPoint: GlobalPoint,
-  elementsMap: NonDeletedSceneElementsMap | SceneElementsMap,
   boundElement?: ExcalidrawBindableElement | null,
   hoveredElement?: ExcalidrawBindableElement | null,
   isDragging?: boolean,
 ): GlobalPoint => {
   if (isDragging) {
     if (hoveredElement) {
-      const snapPoint = getSnapPoint(
-        initialPoint,
-        otherPoint,
-        hoveredElement,
-        elementsMap,
-      );
+      const snapPoint = getSnapPoint(initialPoint, otherPoint, hoveredElement);
 
       return snapToMid(hoveredElement, snapPoint);
     }
@@ -2093,7 +2085,7 @@ const getGlobalPoint = (
       distanceToBindableElement(boundElement, fixedGlobalPoint) -
         FIXED_BINDING_DISTANCE,
     ) > 0.01
-      ? getSnapPoint(initialPoint, otherPoint, boundElement, elementsMap)
+      ? getSnapPoint(initialPoint, otherPoint, boundElement)
       : fixedGlobalPoint;
   }
 
@@ -2104,13 +2096,11 @@ const getSnapPoint = (
   p: GlobalPoint,
   otherPoint: GlobalPoint,
   element: ExcalidrawBindableElement,
-  elementsMap: ElementsMap,
 ) =>
   bindPointToSnapToElementOutline(
     isRectanguloidElement(element) ? avoidRectangularCorner(element, p) : p,
     otherPoint,
     element,
-    elementsMap,
   );
 
 const getBindPointHeading = (
