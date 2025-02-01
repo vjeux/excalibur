@@ -1632,7 +1632,6 @@ export const actionChangeArrowType = register({
               startGlobalPoint,
               endGlobalPoint,
               startHoveredElement,
-              elementsMap,
             )
           : startGlobalPoint;
         const finalEndPoint = endHoveredElement
@@ -1640,7 +1639,6 @@ export const actionChangeArrowType = register({
               endGlobalPoint,
               startGlobalPoint,
               endHoveredElement,
-              elementsMap,
             )
           : endGlobalPoint;
 

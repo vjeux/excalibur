@@ -1,9 +1,12 @@
 import type {
   ElementsMap,
+  ExcalidrawDiamondElement,
   ExcalidrawElement,
+  ExcalidrawEllipseElement,
   ExcalidrawRectangleElement,
+  ExcalidrawRectanguloidElement,
 } from "./types";
-import { getElementBounds } from "./bounds";
+import { getDiamondPoints, getElementBounds } from "./bounds";
 import type { FrameNameBounds } from "../types";
 import type { GeometricShape } from "../../utils/geometry/shape";
 import { getPolygonShape } from "../../utils/geometry/shape";
@@ -15,9 +18,32 @@ import {
   isImageElement,
   isTextElement,
 } from "./typeChecks";
-import { getBoundTextShape, isPathALoop } from "../shapes";
-import type { GlobalPoint, LocalPoint, Polygon } from "../../math";
-import { isPointWithinBounds, pointFrom } from "../../math";
+import { getBoundTextShape, getCornerRadius, isPathALoop } from "../shapes";
+import type {
+  GlobalPoint,
+  Line,
+  LocalPoint,
+  Polygon,
+  Radians,
+} from "../../math";
+import {
+  curve,
+  curveIntersectLine,
+  isPointWithinBounds,
+  line,
+  lineSegment,
+  lineSegmentIntersectionPoints,
+  pointFrom,
+  pointRotateRads,
+  pointsEqual,
+  rectangle,
+} from "../../math";
+import { ellipse, ellipseLineIntersectionPoints } from "../../math/ellipse";
+import {
+  debugClear,
+  debugDrawCubicBezier,
+  debugDrawLine,
+} from "../visualdebug";
 
 export const shouldTestInside = (element: ExcalidrawElement) => {
   if (element.type === "arrow") {
@@ -120,4 +146,289 @@ export const hitElementBoundText = <Point extends GlobalPoint | LocalPoint>(
   textShape: GeometricShape<Point> | null,
 ): boolean => {
   return !!textShape && isPointInShape(pointFrom(x, y), textShape);
+};
+
+/**
+ * Intersect a line with an element for binding test
+ *
+ * @param element
+ * @param line
+ * @param offset
+ * @returns
+ */
+export const intersectElementWithLine = (
+  element: ExcalidrawElement,
+  line: Line<GlobalPoint>,
+  offset: number = 0,
+): GlobalPoint[] => {
+  switch (element.type) {
+    case "rectangle":
+    case "image":
+    case "text":
+    case "iframe":
+    case "embeddable":
+    case "frame":
+    case "magicframe":
+      return intersectRectanguloidWithLine(element, line, offset);
+    case "diamond":
+      return intersectDiamondWithLine(element, line, offset);
+    case "ellipse":
+      return intersectEllipseWithLine(element, line, offset);
+    default:
+      throw new Error(`Unimplemented element type '${element.type}'`);
+  }
+};
+
+const intersectRectanguloidWithLine = (
+  element: ExcalidrawRectanguloidElement,
+  l: Line<GlobalPoint>,
+  offset: number,
+): GlobalPoint[] => {
+  const r = rectangle(
+    pointFrom(element.x - offset, element.y - offset),
+    pointFrom(
+      element.x + element.width + offset,
+      element.y + element.height + offset,
+    ),
+  );
+  const center = pointFrom<GlobalPoint>(
+    element.x + element.width / 2,
+    element.y + element.height / 2,
+  );
+  // To emulate a rotated rectangle we rotate the point in the inverse angle
+  // instead. It's all the same distance-wise.
+  const rotatedA = pointRotateRads<GlobalPoint>(
+    l[0],
+    center,
+    -element.angle as Radians,
+  );
+  const rotatedB = pointRotateRads<GlobalPoint>(
+    l[1],
+    center,
+    -element.angle as Radians,
+  );
+  const roundness = getCornerRadius(
+    Math.min(element.width, element.height),
+    element,
+  );
+
+  const top = lineSegment<GlobalPoint>(
+    pointFrom<GlobalPoint>(r[0][0] + roundness, r[0][1]),
+    pointFrom<GlobalPoint>(r[1][0] - roundness, r[0][1]),
+  );
+  const right = lineSegment<GlobalPoint>(
+    pointFrom<GlobalPoint>(r[1][0], r[0][1] + roundness),
+    pointFrom<GlobalPoint>(r[1][0], r[1][1] - roundness),
+  );
+  const bottom = lineSegment<GlobalPoint>(
+    pointFrom<GlobalPoint>(r[0][0] + roundness, r[1][1]),
+    pointFrom<GlobalPoint>(r[1][0] - roundness, r[1][1]),
+  );
+  const left = lineSegment<GlobalPoint>(
+    pointFrom<GlobalPoint>(r[0][0], r[1][1] - roundness),
+    pointFrom<GlobalPoint>(r[0][0], r[0][1] + roundness),
+  );
+  const sides = [top, right, bottom, left];
+  const corners =
+    roundness > 0
+      ? [
+          curve(
+            left[1],
+            pointFrom(
+              left[1][0] + (2 / 3) * (r[0][0] - left[1][0]),
+              left[1][1] + (2 / 3) * (r[0][1] - left[1][1]),
+            ),
+            pointFrom(
+              top[0][0] + (2 / 3) * (r[0][0] - top[0][0]),
+              top[0][1] + (2 / 3) * (r[0][1] - top[0][1]),
+            ),
+            top[0],
+          ), // TOP LEFT
+          curve(
+            top[1],
+            pointFrom(
+              top[1][0] + (2 / 3) * (r[1][0] - top[1][0]),
+              top[1][1] + (2 / 3) * (r[0][1] - top[1][1]),
+            ),
+            pointFrom(
+              right[0][0] + (2 / 3) * (r[1][0] - right[0][0]),
+              right[0][1] + (2 / 3) * (r[0][1] - right[0][1]),
+            ),
+            right[0],
+          ), // TOP RIGHT
+          curve(
+            right[1],
+            pointFrom(
+              right[1][0] + (2 / 3) * (r[1][0] - right[1][0]),
+              right[1][1] + (2 / 3) * (r[1][1] - right[1][1]),
+            ),
+            pointFrom(
+              bottom[1][0] + (2 / 3) * (r[1][0] - bottom[1][0]),
+              bottom[1][1] + (2 / 3) * (r[1][1] - bottom[1][1]),
+            ),
+            bottom[1],
+          ), // BOTTOM RIGHT
+          curve(
+            bottom[0],
+            pointFrom(
+              bottom[0][0] + (2 / 3) * (r[0][0] - bottom[0][0]),
+              bottom[0][1] + (2 / 3) * (r[1][1] - bottom[0][1]),
+            ),
+            pointFrom(
+              left[0][0] + (2 / 3) * (r[0][0] - left[0][0]),
+              left[0][1] + (2 / 3) * (r[1][1] - left[0][1]),
+            ),
+            left[0],
+          ), // BOTTOM LEFT
+        ]
+      : [];
+
+  debugClear();
+  sides.forEach((s) => debugDrawLine(s, { color: "red", permanent: true }));
+  corners.forEach((s) =>
+    debugDrawCubicBezier(s, { color: "green", permanent: true }),
+  );
+  debugDrawLine(line(rotatedA, rotatedB), { color: "blue", permanent: true });
+  //debugDrawPoint(bottom[0], { color: "white", permanent: true });
+
+  const sideIntersections: GlobalPoint[] = sides
+    .map((s) =>
+      lineSegmentIntersectionPoints(line<GlobalPoint>(rotatedA, rotatedB), s),
+    )
+    .filter((x) => x != null)
+    .map((j) => pointRotateRads<GlobalPoint>(j!, center, element.angle));
+
+  const cornerIntersections: GlobalPoint[] = corners
+    .flatMap((t) => curveIntersectLine(t, line(rotatedA, rotatedB)))
+    .filter((i) => i != null)
+    .map((j) => pointRotateRads(j, center, element.angle));
+
+  // [...sideIntersections, ...cornerIntersections].forEach((p) =>
+  //   debugDrawPoint(p, { color: "purple", permanent: true }),
+  // );
+
+  return (
+    [...sideIntersections, ...cornerIntersections]
+      // Remove duplicates
+      .filter(
+        (p, idx, points) => points.findIndex((d) => pointsEqual(p, d)) === idx,
+      )
+  );
+};
+
+/**
+ *
+ * @param element
+ * @param a
+ * @param b
+ * @returns
+ */
+const intersectDiamondWithLine = (
+  element: ExcalidrawDiamondElement,
+  l: Line<GlobalPoint>,
+  offset: number = 0,
+): GlobalPoint[] => {
+  const [topX, topY, rightX, rightY, bottomX, bottomY, leftX, leftY] =
+    getDiamondPoints(element);
+  const center = pointFrom<GlobalPoint>(
+    (topX + bottomX) / 2,
+    (topY + bottomY) / 2,
+  );
+  const verticalRadius = getCornerRadius(Math.abs(topX - leftX), element);
+  const horizontalRadius = getCornerRadius(Math.abs(rightY - topY), element);
+
+  // Rotate the point to the inverse direction to simulate the rotated diamond
+  // points. It's all the same distance-wise.
+  const rotatedA = pointRotateRads(l[0], center, -element.angle as Radians);
+  const rotatedB = pointRotateRads(l[1], center, -element.angle as Radians);
+
+  const [top, right, bottom, left]: GlobalPoint[] = [
+    pointFrom(element.x + topX, element.y + topY),
+    pointFrom(element.x + rightX, element.y + rightY),
+    pointFrom(element.x + bottomX, element.y + bottomY),
+    pointFrom(element.x + leftX, element.y + leftY),
+  ];
+
+  // Create the line segment parts of the diamond
+  // NOTE: Horizontal and vertical seems to be flipped here
+  const topRight = lineSegment<GlobalPoint>(
+    pointFrom(top[0] + horizontalRadius, top[1] + verticalRadius),
+    pointFrom(right[0] - horizontalRadius, right[1] - verticalRadius),
+  );
+  const bottomRight = lineSegment<GlobalPoint>(
+    pointFrom(bottom[0] + horizontalRadius, bottom[1] - verticalRadius),
+    pointFrom(right[0] - horizontalRadius, right[1] + verticalRadius),
+  );
+  const bottomLeft = lineSegment<GlobalPoint>(
+    pointFrom(bottom[0] - horizontalRadius, bottom[1] - verticalRadius),
+    pointFrom(left[0] + horizontalRadius, left[1] + verticalRadius),
+  );
+  const topLeft = lineSegment<GlobalPoint>(
+    pointFrom(top[0] - horizontalRadius, top[1] + verticalRadius),
+    pointFrom(left[0] + horizontalRadius, left[1] - verticalRadius),
+  );
+
+  const curves = element.roundness
+    ? [
+        curve(topRight[1], right, right, bottomRight[1]), // RIGHT
+        curve(bottomRight[0], bottom, bottom, bottomLeft[0]), // BOTTOM
+        curve(bottomLeft[1], left, left, topLeft[1]), // LEFT
+        curve(topLeft[0], top, top, topRight[0]), // TOP
+      ]
+    : [];
+
+  debugClear();
+  [topRight, bottomRight, bottomLeft, topLeft].forEach((s) => {
+    debugDrawLine(s, { color: "red", permanent: true });
+  });
+  curves.forEach((s) => {
+    debugDrawCubicBezier(s, { color: "green", permanent: true });
+  });
+
+  const sides: GlobalPoint[] = [topRight, bottomRight, bottomLeft, topLeft]
+    .map((s) =>
+      lineSegmentIntersectionPoints(line<GlobalPoint>(rotatedA, rotatedB), s),
+    )
+    .filter((p): p is GlobalPoint => p != null)
+    // Rotate back intersection points
+    .map((p) => pointRotateRads<GlobalPoint>(p!, center, element.angle));
+  const corners = curves
+    .flatMap((p) => curveIntersectLine(p, line(rotatedA, rotatedB)))
+    .filter((p) => p != null)
+    // Rotate back intersection points
+    .map((p) => pointRotateRads(p, center, element.angle));
+
+  return (
+    [...sides, ...corners]
+      // Remove duplicates
+      .filter(
+        (p, idx, points) => points.findIndex((d) => pointsEqual(p, d)) === idx,
+      )
+  );
+};
+
+/**
+ *
+ * @param element
+ * @param a
+ * @param b
+ * @returns
+ */
+const intersectEllipseWithLine = (
+  element: ExcalidrawEllipseElement,
+  l: Line<GlobalPoint>,
+  offset: number = 0,
+): GlobalPoint[] => {
+  const center = pointFrom<GlobalPoint>(
+    element.x + element.width / 2,
+    element.y + element.height / 2,
+  );
+
+  const rotatedA = pointRotateRads(l[0], center, -element.angle as Radians);
+  const rotatedB = pointRotateRads(l[1], center, -element.angle as Radians);
+
+  return ellipseLineIntersectionPoints(
+    ellipse(center, element.width / 2 + offset, element.height / 2 + offset),
+    line(rotatedA, rotatedB),
+  ).map((p) => pointRotateRads(p, center, element.angle));
 };
