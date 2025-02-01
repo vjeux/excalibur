@@ -4744,6 +4744,12 @@ class App extends React.Component<AppProps, AppState> {
 
   // fires only on Safari
   private onGestureStart = withBatchedUpdates((event: GestureEvent) => {
+    if (
+      !this.props.handleGestureGlobally &&
+      this.excalidrawContainerRef.current?.contains(event.target as Node)
+    ) {
+      return;
+    }
     event.preventDefault();
 
     // we only want to deselect on touch screens because user may have selected
@@ -4759,6 +4765,12 @@ class App extends React.Component<AppProps, AppState> {
 
   // fires only on Safari
   private onGestureChange = withBatchedUpdates((event: GestureEvent) => {
+    if (
+      !this.props.handleGestureGlobally &&
+      this.excalidrawContainerRef.current?.contains(event.target as Node)
+    ) {
+      return;
+    }
     event.preventDefault();
 
     // onGestureChange only has zoom factor but not the center.
@@ -4791,6 +4803,12 @@ class App extends React.Component<AppProps, AppState> {
 
   // fires only on Safari
   private onGestureEnd = withBatchedUpdates((event: GestureEvent) => {
+    if (
+      !this.props.handleGestureGlobally &&
+      this.excalidrawContainerRef.current?.contains(event.target as Node)
+    ) {
+      return;
+    }
     event.preventDefault();
     // reselect elements only on touch screens (see onGestureStart)
     if (this.isTouchScreenMultiTouchGesture()) {
