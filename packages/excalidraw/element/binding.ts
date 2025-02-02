@@ -29,7 +29,12 @@ import type {
 } from "./types";
 
 import type { Bounds } from "./bounds";
-import { getCenterForBounds, getElementAbsoluteCoords } from "./bounds";
+import {
+  getCenterForBounds,
+  getElementAbsoluteCoords,
+  getElementBounds,
+  doBoundsIntersect,
+} from "./bounds";
 import type { AppState } from "../types";
 import { isPointOnShape } from "../../utils/collision";
 import { getElementAtPosition } from "../scene";
@@ -708,6 +713,21 @@ export const updateBoundElements = (
       return;
     }
 
+    // Check for intersections before updating bound elements incase connected elements overlap
+    const startBindingElement = element.startBinding
+      ? elementsMap.get(element.startBinding.elementId)
+      : null;
+    const endBindingElement = element.endBinding
+      ? elementsMap.get(element.endBinding.elementId)
+      : null;
+
+    let startBounds: Bounds | null = null;
+    let endBounds: Bounds | null = null;
+    if (startBindingElement && endBindingElement) {
+      startBounds = getElementBounds(startBindingElement, elementsMap);
+      endBounds = getElementBounds(endBindingElement, elementsMap);
+    }
+
     const bindings = {
       startBinding: maybeCalculateNewGapWhenScaling(
         changedElement,
@@ -735,7 +755,12 @@ export const updateBoundElements = (
           bindableElement &&
           isBindableElement(bindableElement) &&
           (bindingProp === "startBinding" || bindingProp === "endBinding") &&
-          changedElement.id === element[bindingProp]?.elementId
+          (changedElement.id === element[bindingProp]?.elementId ||
+            (changedElement.id ===
+              element[
+                bindingProp === "startBinding" ? "endBinding" : "startBinding"
+              ]?.elementId &&
+              !doBoundsIntersect(startBounds, endBounds)))
         ) {
           const point = updateBoundPoint(
             element,
