@@ -917,18 +917,6 @@ export const updateElbowArrowPoints = (
       },
     );
   }
-  // @ts-ignore See above note
-  arrow.x = clamp(arrow.x, -MAX_POS, MAX_POS);
-  // @ts-ignore See above note
-  arrow.y = clamp(arrow.y, -MAX_POS, MAX_POS);
-  if (updates.points) {
-    updates.points = updates.points.map(([x, y]) =>
-      pointFrom<LocalPoint>(
-        clamp(x, -MAX_POS, MAX_POS),
-        clamp(y, -MAX_POS, MAX_POS),
-      ),
-    );
-  }
 
   if (!import.meta.env.PROD) {
     invariant(
@@ -2028,7 +2016,7 @@ const normalizeArrowElementUpdate = (
   const offsetX = global[0][0];
   const offsetY = global[0][1];
 
-  let points = global.map((p) =>
+  const points = global.map((p) =>
     pointTranslate<GlobalPoint, LocalPoint>(
       p,
       vectorScale(vectorFromPoint(global[0]), -1),
@@ -2058,14 +2046,10 @@ const normalizeArrowElementUpdate = (
     );
   }
 
-  points = points.map(([x, y]) =>
-    pointFrom<LocalPoint>(clamp(x, -1e6, 1e6), clamp(y, -1e6, 1e6)),
-  );
-
   return {
     points,
-    x: clamp(offsetX, -1e6, 1e6),
-    y: clamp(offsetY, -1e6, 1e6),
+    x: offsetX,
+    y: offsetY,
     fixedSegments:
       (nextFixedSegments?.length ?? 0) > 0 ? nextFixedSegments : null,
     ...getSizeFromPoints(points),
