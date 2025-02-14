@@ -1,5 +1,14 @@
+import { EPSILON } from "../excalidraw/constants";
 import { pointCenter, pointFrom, pointRotateRads } from "./point";
-import type { GlobalPoint, Line, LocalPoint, Radians } from "./types";
+import { pointOnLineSegment } from "./segment";
+import type {
+  GlobalPoint,
+  Line,
+  LineSegment,
+  LocalPoint,
+  Radians,
+} from "./types";
+import { vectorCross, vectorFromPoint } from "./vector";
 
 /**
  * Create a line from two points.
@@ -84,3 +93,54 @@ export const linesIntersectAt = <Point extends GlobalPoint | LocalPoint>(
 
   return null;
 };
+
+/**
+ * Returns the intersection point of a segment and a line
+ *
+ * @param l
+ * @param s
+ * @returns
+ */
+export function lineSegmentIntersectionPoints<
+  Point extends GlobalPoint | LocalPoint,
+>(l: LineSegment<Point>, s: LineSegment<Point>): Point | null {
+  const candidate = linesIntersectAt(line(l[0], l[1]), line(s[0], s[1]));
+  if (
+    !candidate ||
+    !pointOnLineSegment(candidate, s) ||
+    !pointOnLineSegment(candidate, l)
+  ) {
+    return null;
+  }
+
+  return candidate;
+}
+
+export function isPointOnLineSegment<P extends GlobalPoint | LocalPoint>(
+  l: LineSegment<P>,
+  p: P,
+  epsilon: number = EPSILON,
+) {
+  if (!isPointOnLine(line(l[0], l[1]), p, epsilon)) {
+    return false;
+  }
+
+  const minX = Math.min(l[0][0], l[1][0]);
+  const minY = Math.min(l[0][1], l[1][1]);
+  const maxX = Math.max(l[0][0], l[1][0]);
+  const maxY = Math.max(l[0][1], l[1][1]);
+
+  return p[0] >= minX && p[0] <= maxX && p[1] >= minY && p[1] <= maxY;
+}
+
+export function isPointOnLine<P extends GlobalPoint | LocalPoint>(
+  l: Line<P>,
+  p: P,
+  epsilon: number = EPSILON,
+) {
+  const p1 = vectorFromPoint(l[1], l[0]);
+  const p2 = vectorFromPoint(p, l[0]);
+
+  const r = vectorCross(p1, p2);
+  return Math.abs(r) < epsilon;
+}
